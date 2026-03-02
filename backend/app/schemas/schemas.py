@@ -46,6 +46,8 @@ class ProductBase(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
+    unit: Optional[str] = None
+    weight: Optional[str] = None
     photo_url: Optional[str] = None
     category_id: Optional[int] = None
     is_visible: bool = True
@@ -56,11 +58,12 @@ class ProductCreate(ProductBase):
 class ProductUpdate(ProductBase):
     pass
 
-# Только скалярные поля — никаких relationship!
 class ProductShort(BaseModel):
     id: int
     name: str
     price: float
+    unit: Optional[str] = None
+    weight: Optional[str] = None
     photo_url: Optional[str] = None
     model_config = {"from_attributes": True}
 
@@ -82,7 +85,6 @@ class UserOut(BaseModel):
 
 
 # --- Order ---
-# ProductShort не содержит category — никакого lazy load
 class OrderItemOut(BaseModel):
     id: int
     product_id: int

@@ -32,15 +32,49 @@ async def startup():
     await init_db()
 
     async with AsyncSessionLocal() as db:
-        # Добавляем колонку phone если её ещё нет (для существующих БД)
-        try:
-            await db.execute(text("ALTER TABLE users ADD COLUMN phone VARCHAR(50)"))
-            await db.commit()
-            print("✅ Column 'phone' added to users")
-        except Exception:
-            pass  # уже существует
+        # Миграции для существующих БД
+        for sql in [
+            "ALTER TABLE users ADD COLUMN phone VARCHAR(50)",
+            "ALTER TABLE products ADD COLUMN unit VARCHAR(50)",
+            "ALTER TABLE products ADD COLUMN weight VARCHAR(100)",
+        ]:
+            try:
+                await db.execute(text(sql))
+                await db.commit()
+            except Exception:
+                pass  # колонка уже существует
 
-        # Create default admin if not exists
+        # Делаем product_id в order_items nullable (для удаления товаров без потери истории)
+        # SQLite не поддерживает ALTER COLUMN, поэтому пересоздаём таблицу
+        try:
+            await db.execute(text("SELECT nullable FROM pragma_table_info('order_items') WHERE name='product_id'"))
+            # Проверяем: если product_id уже nullable — пропускаем
+            result = await db.execute(text(
+                "SELECT notnull FROM pragma_table_info('order_items') WHERE name='product_id'"
+            ))
+            row = result.fetchone()
+            if row and row[0] == 1:  # notnull=1 значит NOT NULL — надо исправить
+                await db.execute(text("PRAGMA foreign_keys=OFF"))
+                await db.execute(text("""
+                    CREATE TABLE IF NOT EXISTS order_items_new (
+                        id INTEGER PRIMARY KEY,
+                        order_id INTEGER REFERENCES orders(id),
+                        product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+                        quantity INTEGER DEFAULT 1,
+                        price_at_order FLOAT
+                    )
+                """))
+                await db.execute(text("INSERT INTO order_items_new SELECT * FROM order_items"))
+                await db.execute(text("DROP TABLE order_items"))
+                await db.execute(text("ALTER TABLE order_items_new RENAME TO order_items"))
+                await db.execute(text("PRAGMA foreign_keys=ON"))
+                await db.commit()
+                print("✅ order_items.product_id migrated to nullable with SET NULL")
+        except Exception as e:
+            print(f"Migration order_items skip: {e}")
+            pass
+
+        # Создать дефолтного админа если нет
         result = await db.execute(select(Admin).where(Admin.username == "admin"))
         if not result.scalar_one_or_none():
             admin = Admin(

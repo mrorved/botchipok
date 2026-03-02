@@ -216,7 +216,12 @@ def _product_text(product: dict, index: int, total: int) -> str:
     text = f"<b>{product['name']}</b>\n"
     if product.get("description"):
         text += f"\n{product['description']}\n"
-    text += f"\n💰 <b>{product['price']} ₽</b>"
+    price_line = f"💰 <b>{product['price']} ₽</b>"
+    if product.get("unit"):
+        price_line += f"  <i>{product['unit']}</i>"
+    if product.get("weight"):
+        price_line += f"  📦 {product['weight']}"
+    text += f"\n{price_line}"
     if total > 1:
         text += f"\n\n<i>{index + 1} из {total}</i>"
     return text
@@ -275,7 +280,12 @@ async def paginate_products(callback: CallbackQuery):
 async def show_product_detail(callback: CallbackQuery):
     product_id = int(callback.data[8:])
     product = await api_client.get_product(product_id)
-    text = f"<b>{product['name']}</b>\n\n{product.get('description') or ''}\n\n💰 <b>{product['price']} ₽</b>"
+    price_line = f"💰 <b>{product['price']} ₽</b>"
+    if product.get("unit"):
+        price_line += f"  <i>{product['unit']}</i>"
+    if product.get("weight"):
+        price_line += f"  📦 {product['weight']}"
+    text = f"<b>{product['name']}</b>\n\n{product.get('description') or ''}\n\n{price_line}"
     kb = InlineKeyboardBuilder()
     kb.button(text="🛒 В корзину", callback_data=f"add_to_cart_{product_id}")
     kb.button(text="◀️ Каталог", callback_data="catalog")

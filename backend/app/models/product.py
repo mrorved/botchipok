@@ -9,6 +9,8 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     price: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str | None] = mapped_column(String(50))    # шт., кг, л, уп. и т.д.
+    weight: Mapped[str | None] = mapped_column(String(100))  # фасовка: 1.1 кг, 500 мл и т.д.
     photo_url: Mapped[str | None] = mapped_column(String(500))
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True)

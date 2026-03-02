@@ -228,7 +228,12 @@ async def export_pending_orders(
     summary: dict[str, dict] = {}
     for o in orders:
         for item in o.items:
-            name = item.product.name if item.product else f"Товар #{item.product_id}"
+            p = item.product
+            name = p.name if p else f"Товар #{item.product_id}"
+            if p:
+                parts = [x for x in [p.unit, p.weight] if x]
+                if parts:
+                    name += f" ({', '.join(parts)})"
             if name not in summary:
                 summary[name] = {"qty": 0, "price": item.price_at_order}
             summary[name]["qty"] += item.quantity
@@ -474,9 +479,18 @@ async def export_single_order(
 
     # Таблица товаров
     headers = ["Наименование товара", "Кол-во", "Цена за шт.", "Сумма"]
+    def _product_label(item):
+        name = item.product.name if item.product else f"#{item.product_id}"
+        parts = []
+        if item.product and item.product.unit:
+            parts.append(item.product.unit)
+        if item.product and item.product.weight:
+            parts.append(item.product.weight)
+        return f"{name} ({', '.join(parts)})" if parts else name
+
     rows = [
         (
-            item.product.name if item.product else f"#{item.product_id}",
+            _product_label(item),
             item.quantity,
             item.price_at_order,
             item.price_at_order * item.quantity,

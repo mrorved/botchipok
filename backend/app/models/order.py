@@ -47,9 +47,12 @@ class OrderItem(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    # nullable + SET NULL: при удалении товара позиция сохраняется, product станет None
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="SET NULL"), nullable=True
+    )
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     price_at_order: Mapped[float] = mapped_column(Float)
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")
-    product: Mapped["Product"] = relationship("Product", back_populates="order_items")
+    product: Mapped["Product | None"] = relationship("Product", back_populates="order_items")
