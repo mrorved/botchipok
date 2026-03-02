@@ -348,6 +348,26 @@ async def get_order(order_id: int, db: AsyncSession = Depends(get_db), admin=Dep
     return order
 
 
+@router.delete("/{order_id}")
+async def delete_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(get_current_admin),
+):
+    result = await db.execute(_order_query().where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status not in (OrderStatus.CANCELLED, OrderStatus.ISSUED):
+        raise HTTPException(
+            status_code=400,
+            detail="Можно удалять только отменённые или выданные заказы"
+        )
+    await db.delete(order)
+    await db.commit()
+    return {"ok": True}
+
+
 @router.patch("/{order_id}/status", response_model=OrderOut)
 async def update_order_status(
     order_id: int,

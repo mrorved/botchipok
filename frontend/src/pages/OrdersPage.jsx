@@ -31,7 +31,6 @@ const STATUS_COLORS = {
   cancelled: 'bg-red-500/15 text-red-400 border-red-800/50',
 }
 
-// Вкладки: "Активные" скрывают issued/cancelled, остальные — конкретный статус
 const TABS = [
   { key: 'active', label: 'Активные' },
   { key: 'pending', label: 'На подтверждении' },
@@ -43,6 +42,7 @@ const TABS = [
 ]
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'adjusted', 'paid']
+const DELETABLE_STATUSES = ['cancelled', 'issued']
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([])
@@ -52,18 +52,10 @@ export default function OrdersPage() {
   const [editQty, setEditQty] = useState(1)
 
   const load = async () => {
-    let params = ''
-    if (tab === 'active') {
-      // Грузим все, потом фильтруем клиентски
-      params = ''
-    } else {
-      params = `?status=${tab}`
-    }
+    const params = tab === 'active' ? '' : `?status=${tab}`
     const r = await api.get(`/api/orders/${params}`)
     let data = r.data
-    if (tab === 'active') {
-      data = data.filter(o => ACTIVE_STATUSES.includes(o.status))
-    }
+    if (tab === 'active') data = data.filter(o => ACTIVE_STATUSES.includes(o.status))
     setOrders(data)
   }
 
@@ -78,6 +70,19 @@ export default function OrdersPage() {
       load()
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Ошибка')
+    }
+  }
+
+  const deleteOrder = async (orderId, status) => {
+    const label = STATUS_LABELS[status]
+    if (!confirm(`Удалить заказ #${orderId} (${label})? Это действие необратимо.`)) return
+    try {
+      await api.delete(`/api/orders/${orderId}`)
+      toast.success(`Заказ #${orderId} удалён`)
+      setExpanded(null)
+      load()
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Ошибка удаления')
     }
   }
 
@@ -104,7 +109,6 @@ export default function OrdersPage() {
     }
   }
 
-  // Экспорт конкретного заказа
   const exportOrder = async (orderId, format = 'xlsx') => {
     try {
       await downloadFile(`/api/orders/${orderId}/export?format=${format}`, `order_${orderId}.${format}`)
@@ -113,7 +117,6 @@ export default function OrdersPage() {
     }
   }
 
-  // Экспорт сводного списка товаров в статусе "на подтверждении"
   const exportPendingSummary = async (format = 'xlsx') => {
     try {
       await downloadFile(`/api/orders/export/pending?format=${format}`, `pending_orders.${format}`)
@@ -132,7 +135,7 @@ export default function OrdersPage() {
           <button
             onClick={() => exportPendingSummary('xlsx')}
             className="btn-ghost flex items-center gap-2 text-xs"
-            title="Сводный список товаров из заказов 'На подтверждении'"
+            title="Сводный список товаров из заказов «На подтверждении»"
           >
             <Package size={14} /> Сводная выгрузка
           </button>
@@ -149,7 +152,7 @@ export default function OrdersPage() {
               tab === t.key
                 ? t.key === 'active'
                   ? 'bg-amber-500/10 text-amber-400 border-amber-800/50'
-                  : `${STATUS_COLORS[t.key]}`
+                  : STATUS_COLORS[t.key]
                 : 'text-ink-400 border-ink-800 hover:border-ink-700'
             }`}
           >
@@ -195,7 +198,6 @@ export default function OrdersPage() {
             {expanded === order.id && (
               <div className="border-t border-ink-800 p-4 space-y-4">
 
-                {/* Шапка с выгрузкой заказа */}
                 <div className="flex justify-between items-center">
                   <p className="text-xs text-ink-500 font-medium uppercase tracking-wide">Товары</p>
                   <div className="flex gap-1.5">
@@ -219,7 +221,7 @@ export default function OrdersPage() {
                   {order.items?.map(item => (
                     <div key={item.id} className="flex items-center gap-3 bg-ink-800/50 rounded-lg px-3 py-2">
                       <span className="text-sm text-ink-300 flex-1">
-                        {item.product?.name || `#${item.product_id}`}
+                        {item.product?.name || <span className="text-ink-600 italic">Удалённый товар</span>}
                       </span>
 
                       {editingItem?.orderId === order.id && editingItem?.itemId === item.id ? (
@@ -297,6 +299,19 @@ export default function OrdersPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Удаление заказа — только для выданных и отменённых */}
+                {DELETABLE_STATUSES.includes(order.status) && (
+                  <div className="pt-2 border-t border-ink-800/50 flex justify-end">
+                    <button
+                      onClick={() => deleteOrder(order.id, order.status)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-red-400 border border-red-900/50 hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 size={12} /> Удалить заказ
+                    </button>
+                  </div>
+                )}
+
               </div>
             )}
           </div>
