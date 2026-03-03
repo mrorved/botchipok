@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [newLabel, setNewLabel] = useState('')
   const [adding, setAdding] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [pwForm, setPwForm] = useState({ old_password: '', new_password: '', confirm: '' })
+  const [pwSaving, setPwSaving] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editLabel, setEditLabel] = useState('')
 
@@ -59,6 +61,28 @@ export default function SettingsPage() {
       toast.error(e.response?.data?.detail || 'Ошибка')
     } finally {
       setTesting(false)
+    }
+  }
+
+  const changePassword = async () => {
+    if (pwForm.new_password !== pwForm.confirm) {
+      toast.error('Новые пароли не совпадают'); return
+    }
+    if (pwForm.new_password.length < 6) {
+      toast.error('Минимум 6 символов'); return
+    }
+    setPwSaving(true)
+    try {
+      await api.post('/api/auth/change-password', {
+        old_password: pwForm.old_password,
+        new_password: pwForm.new_password,
+      })
+      toast.success('Пароль изменён')
+      setPwForm({ old_password: '', new_password: '', confirm: '' })
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Ошибка')
+    } finally {
+      setPwSaving(false)
     }
   }
 
@@ -171,6 +195,53 @@ export default function SettingsPage() {
             Узнать свой Telegram ID можно у бота <span className="text-ink-300">@userinfobot</span>. 
             Зелёная точка — уведомления включены, серая — отключены.
           </p>
+        </div>
+      </div>
+
+      {/* Смена пароля */}
+      <div className="card p-6 max-w-xl mt-4">
+        <h2 className="text-sm font-semibold text-ink-300 mb-1">Смена пароля</h2>
+        <p className="text-xs text-ink-500 mb-5">Пароль для входа в панель администратора.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-ink-400 font-medium mb-1.5 block">Текущий пароль</label>
+            <input
+              type="password"
+              className="input"
+              placeholder="••••••••"
+              value={pwForm.old_password}
+              onChange={e => setPwForm(f => ({ ...f, old_password: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-ink-400 font-medium mb-1.5 block">Новый пароль</label>
+            <input
+              type="password"
+              className="input"
+              placeholder="Минимум 6 символов"
+              value={pwForm.new_password}
+              onChange={e => setPwForm(f => ({ ...f, new_password: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-ink-400 font-medium mb-1.5 block">Повторите новый пароль</label>
+            <input
+              type="password"
+              className="input"
+              placeholder="••••••••"
+              value={pwForm.confirm}
+              onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
+          <button
+            className="btn-primary"
+            onClick={changePassword}
+            disabled={pwSaving || !pwForm.old_password || !pwForm.new_password || !pwForm.confirm}
+          >
+            {pwSaving ? 'Сохранение...' : 'Сменить пароль'}
+          </button>
         </div>
       </div>
     </div>
