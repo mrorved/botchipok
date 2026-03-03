@@ -70,9 +70,14 @@ async def add_to_cart(callback: CallbackQuery, state: FSMContext):
     product = await api_client.get_product(product_id)
     qty = cart[key]
 
+    # Кнопка «Назад» ведёт в категорию товара (или в общий каталог если категории нет)
+    cat_id = product.get("category_id")
+    back_cb = f"cat_{cat_id}" if cat_id else "cat_all"
+
     kb = InlineKeyboardBuilder()
     kb.button(text=f"➕ Ещё {product['name']}", callback_data=f"add_to_cart_{product_id}")
     kb.button(text=f"🛒 Корзина ({sum(cart.values())})", callback_data="cart_view")
+    kb.button(text="◀️ Назад к категории", callback_data=back_cb)
     kb.button(text="🛍 Каталог", callback_data="catalog")
     kb.adjust(1)
 

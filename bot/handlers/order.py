@@ -28,7 +28,7 @@ async def checkout_start(callback: CallbackQuery, state: FSMContext):
 
     try:
         await callback.message.edit_text(
-            "💬 Введите комментарий к заказу\n(например: без лука, позвонить перед доставкой)\n\nИли нажмите «Без комментария»:",
+            "💬 Введите комментарий к заказу\n(При необходимости)\n\nИли нажмите «Без комментария»:",
             reply_markup=kb.as_markup(),
         )
     except Exception:
