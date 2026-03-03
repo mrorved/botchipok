@@ -8,7 +8,7 @@ from app.api.deps import get_current_admin
 from app.models.order import Order, OrderItem, OrderStatus, STATUS_TRANSITIONS, STATUS_LABELS
 from app.models.product import Product
 from app.schemas.schemas import OrderOut, OrderStatusUpdate, OrderItemUpdate
-from app.services.notifier import notify_user_status_change, notify_user_order_cancelled
+from app.services.notifier import notify_user_status_change, notify_user_order_cancelled, notify_user_confirmed
 import io, csv
 import openpyxl
 from openpyxl.styles import (
@@ -385,11 +385,24 @@ async def update_order_status(
         raise HTTPException(status_code=400,
             detail=f"Нельзя перейти из '{order.status}' в '{data.status}'")
 
+    # Собираем snapshot товаров ДО смены статуса (пока relations загружены)
+    items_snapshot = []
+    for item in order.items:
+        items_snapshot.append({
+            "name": item.product.name if item.product else "Удалённый товар",
+            "quantity": item.quantity,
+            "price": item.price_at_order,
+            "removed": item.product is None,
+        })
+    total = sum(i["price"] * i["quantity"] for i in items_snapshot if not i["removed"])
+
     order.status = data.status
     await db.commit()
 
     if data.status == OrderStatus.CANCELLED:
         await notify_user_order_cancelled(order.user.telegram_id, order.id)
+    elif data.status in (OrderStatus.CONFIRMED, OrderStatus.ADJUSTED):
+        await notify_user_confirmed(order.user.telegram_id, order.id, items_snapshot, total)
     else:
         await notify_user_status_change(order.user.telegram_id, order.id, data.status)
 
