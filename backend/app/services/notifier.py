@@ -29,32 +29,37 @@ async def notify_user_status_change(telegram_id: int, order_id: int, status: Ord
     await _send_telegram(telegram_id, template.format(order_id=order_id))
 
 
-async def notify_user_confirmed(telegram_id: int, order_id: int, items: list, total: float):
-    """
-    Отправляет детальное сообщение при подтверждении заказа (confirmed / adjusted).
-    items — список dict: {"name": str, "quantity": int, "price": float, "removed": bool}
-    """
+async def notify_user_confirmed(
+    telegram_id: int,
+    order_id: int,
+    items: list,
+    total: float,
+    force_adjusted: bool = False,
+):
     lines = []
-    has_removed = False
+    has_removed = force_adjusted
 
     for i, item in enumerate(items, 1):
         if item["removed"]:
             lines.append(f"  {i}. {item['name']} — <s>нет на складе</s>")
             has_removed = True
         else:
-            lines.append(f"  {i}. {item['name']} × {item['quantity']} = {item['price'] * item['quantity']:.0f} ₽")
+            lines.append(
+                f"  {i}. {item['name']} \u00d7 {item['quantity']} = "
+                f"{item['price'] * item['quantity']:.0f} \u20bd"
+            )
 
     items_text = "\n".join(lines)
 
     if has_removed:
         header = f"📝 <b>Ваш заказ #{order_id} подтверждён с корректировкой</b>"
         footer = (
-            f"\n⚠️ Некоторые позиции недоступны и были убраны из заказа.\n"
-            f"\n💰 <b>Итоговая сумма: {total:.0f} ₽</b>"
+            f"\n\n⚠️ Некоторые позиции недоступны и были убраны из заказа."
+            f"\n\n💰 <b>Итоговая сумма: {total:.0f} \u20bd</b>"
         )
     else:
         header = f"✅ <b>Ваш заказ #{order_id} подтверждён</b>"
-        footer = f"\n💰 <b>Итоговая сумма: {total:.0f} ₽</b>"
+        footer = f"\n\n💰 <b>Итоговая сумма: {total:.0f} \u20bd</b>"
 
     text = f"{header}\n\n{items_text}{footer}"
     await _send_telegram(telegram_id, text)

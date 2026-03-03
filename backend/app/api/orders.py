@@ -385,24 +385,43 @@ async def update_order_status(
         raise HTTPException(status_code=400,
             detail=f"Нельзя перейти из '{order.status}' в '{data.status}'")
 
-    # Собираем snapshot товаров ДО смены статуса (пока relations загружены)
+    # Собираем snapshot текущих позиций
     items_snapshot = []
     for item in order.items:
         items_snapshot.append({
             "name": item.product.name if item.product else "Удалённый товар",
             "quantity": item.quantity,
             "price": item.price_at_order,
-            "removed": item.product is None,
+            "removed": False,
         })
+
+    # Добавляем удалённые позиции из лога
+    if order.removed_items_log:
+        for removed_name in order.removed_items_log.strip().split("\n"):
+            if removed_name.strip():
+                items_snapshot.append({
+                    "name": removed_name.strip(),
+                    "quantity": 0,
+                    "price": 0,
+                    "removed": True,
+                })
+
+    has_removed = order.has_adjustments or False
     total = sum(i["price"] * i["quantity"] for i in items_snapshot if not i["removed"])
 
     order.status = data.status
+    # Сбрасываем лог после подтверждения — уведомление уже будет отправлено
+    order.removed_items_log = None
+    order.has_adjustments = False
     await db.commit()
 
     if data.status == OrderStatus.CANCELLED:
         await notify_user_order_cancelled(order.user.telegram_id, order.id)
     elif data.status in (OrderStatus.CONFIRMED, OrderStatus.ADJUSTED):
-        await notify_user_confirmed(order.user.telegram_id, order.id, items_snapshot, total)
+        await notify_user_confirmed(
+            order.user.telegram_id, order.id, items_snapshot, total,
+            force_adjusted=has_removed,
+        )
     else:
         await notify_user_status_change(order.user.telegram_id, order.id, data.status)
 
@@ -438,11 +457,26 @@ async def delete_order_item(
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_admin),
 ):
-    result = await db.execute(select(OrderItem).where(OrderItem.id == item_id, OrderItem.order_id == order_id))
+    from sqlalchemy.orm import selectinload as _sel
+    result = await db.execute(
+        select(OrderItem)
+        .options(_sel(OrderItem.product))
+        .where(OrderItem.id == item_id, OrderItem.order_id == order_id)
+    )
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    removed_name = item.product.name if item.product else f"Товар #{item.product_id}"
     await db.delete(item)
+
+    order_result = await db.execute(select(Order).where(Order.id == order_id))
+    order = order_result.scalar_one_or_none()
+    if order:
+        order.has_adjustments = True
+        existing = order.removed_items_log or ""
+        order.removed_items_log = (existing + "\n" + removed_name) if existing else removed_name
+
     await db.commit()
     result2 = await db.execute(_order_query().where(Order.id == order_id))
     return result2.scalar_one()

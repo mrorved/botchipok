@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, ForeignKey, DateTime, Integer, Float, Enum, func
+from sqlalchemy import String, Text, ForeignKey, DateTime, Integer, Float, Boolean, Enum, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 from datetime import datetime
@@ -37,6 +37,8 @@ class Order(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     comment: Mapped[str | None] = mapped_column(Text)
     status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    has_adjustments: Mapped[bool] = mapped_column(Boolean, default=False)  # True если удалялись позиции
+    removed_items_log: Mapped[str | None] = mapped_column(Text)  # названия удалённых позиций через \n
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="orders")

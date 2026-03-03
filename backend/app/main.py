@@ -37,6 +37,8 @@ async def startup():
             "ALTER TABLE users ADD COLUMN phone VARCHAR(50)",
             "ALTER TABLE products ADD COLUMN unit VARCHAR(50)",
             "ALTER TABLE products ADD COLUMN weight VARCHAR(100)",
+            "ALTER TABLE orders ADD COLUMN has_adjustments BOOLEAN DEFAULT 0",
+            "ALTER TABLE orders ADD COLUMN removed_items_log TEXT",
         ]:
             try:
                 await db.execute(text(sql))
