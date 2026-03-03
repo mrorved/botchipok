@@ -16,7 +16,7 @@ services:
       - ADMIN_TELEGRAM_IDS=${ADMIN_TELEGRAM_IDS:-}
       - API_BASE_URL=${API_BASE_URL:-http://backend:8000}
     ports:
-      - "8000:8000"
+      - "8001:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 5s
