@@ -5,11 +5,16 @@ services:
     build: ./backend
     container_name: shop_backend
     restart: unless-stopped
-    env_file: .env
     volumes:
-      - ./data:/app/data
+      - /opt/shopadmin/data:/app/data
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/shop.db
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:////app/data/shop.db}
+      - SECRET_KEY=${SECRET_KEY}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BOT_API_SECRET=${BOT_API_SECRET}
+      - ADMIN_TELEGRAM_ID=${ADMIN_TELEGRAM_ID:-0}
+      - ADMIN_TELEGRAM_IDS=${ADMIN_TELEGRAM_IDS:-}
+      - API_BASE_URL=${API_BASE_URL:-http://backend:8000}
     ports:
       - "8000:8000"
     healthcheck:
@@ -23,7 +28,10 @@ services:
     build: ./bot
     container_name: shop_bot
     restart: unless-stopped
-    env_file: .env
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - API_BASE_URL=${API_BASE_URL:-http://backend:8000}
+      - BOT_API_SECRET=${BOT_API_SECRET}
     depends_on:
       backend:
         condition: service_healthy
