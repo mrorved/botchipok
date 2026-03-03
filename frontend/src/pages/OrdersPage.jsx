@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../api/client'
 import toast from 'react-hot-toast'
-import { Download, ChevronDown, Trash2, Pencil, X, Check, Package } from 'lucide-react'
+import { Download, ChevronDown, Trash2, Pencil, X, Check, Package, Send } from 'lucide-react'
 import { downloadFile } from '../utils/download'
 
 const STATUS_LABELS = {
@@ -50,6 +50,9 @@ export default function OrdersPage() {
   const [expanded, setExpanded] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
   const [editQty, setEditQty] = useState(1)
+  const [broadcastModal, setBroadcastModal] = useState(false)
+  const [broadcastText, setBroadcastText] = useState('')
+  const [broadcasting, setBroadcasting] = useState(false)
 
   const load = async () => {
     const params = tab === 'active' ? '' : `?status=${tab}`
@@ -127,6 +130,21 @@ export default function OrdersPage() {
 
   const canEdit = (status) => ACTIVE_STATUSES.includes(status)
 
+  const sendBroadcast = async () => {
+    if (!broadcastText.trim()) return
+    setBroadcasting(true)
+    try {
+      const r = await api.post('/api/clients/broadcast/active-orders', { text: broadcastText.trim() })
+      toast.success(`Отправлено ${r.data.sent} клиентам${r.data.failed > 0 ? `, ошибок: ${r.data.failed}` : ''}`)
+      setBroadcastModal(false)
+      setBroadcastText('')
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Ошибка рассылки')
+    } finally {
+      setBroadcasting(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -138,6 +156,13 @@ export default function OrdersPage() {
             title="Сводный список товаров из заказов «На подтверждении»"
           >
             <Package size={14} /> Сводная выгрузка
+          </button>
+          <button
+            onClick={() => { setBroadcastText(''); setBroadcastModal(true) }}
+            className="btn-ghost flex items-center gap-2 text-xs"
+            title="Отправить сообщение клиентам с активными заказами"
+          >
+            <Send size={14} /> Рассылка
           </button>
         </div>
       </div>
@@ -317,6 +342,32 @@ export default function OrdersPage() {
           </div>
         ))}
       </div>
+      {broadcastModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold mb-1">Рассылка по активным заказам</h2>
+            <p className="text-sm text-ink-500 mb-4">Сообщение получат все клиенты у которых есть заказы со статусом: на подтверждении, подтверждён, с корректировкой или оплачен.</p>
+            <textarea
+              className="input resize-none"
+              rows={5}
+              placeholder="Введите текст сообщения..."
+              value={broadcastText}
+              onChange={e => setBroadcastText(e.target.value)}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="btn-ghost" onClick={() => setBroadcastModal(false)}>Отмена</button>
+              <button
+                className="btn-primary flex items-center gap-2"
+                onClick={sendBroadcast}
+                disabled={broadcasting || !broadcastText.trim()}
+              >
+                <Send size={14} /> {broadcasting ? 'Отправка...' : 'Отправить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
