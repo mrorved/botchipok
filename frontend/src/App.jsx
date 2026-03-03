@@ -7,6 +7,7 @@ import ProductsPage from './pages/ProductsPage'
 import CategoriesPage from './pages/CategoriesPage'
 import OrdersPage from './pages/OrdersPage'
 import ClientsPage from './pages/ClientsPage'
+import SettingsPage from './pages/SettingsPage'
 
 function PrivateRoute({ children }) {
   const { isAuth } = useAuth()
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="clients" element={<ClientsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
     </AuthProvider>

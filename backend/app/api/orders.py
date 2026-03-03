@@ -8,7 +8,7 @@ from app.api.deps import get_current_admin
 from app.models.order import Order, OrderItem, OrderStatus, STATUS_TRANSITIONS, STATUS_LABELS
 from app.models.product import Product
 from app.schemas.schemas import OrderOut, OrderStatusUpdate, OrderItemUpdate
-from app.services.notifier import notify_user_status_change, notify_user_order_cancelled, notify_user_confirmed
+from app.services.notifier import notify_user_status_change, notify_user_order_cancelled, notify_user_confirmed, notify_admins_status_change
 import io, csv
 import openpyxl
 from openpyxl.styles import (
@@ -424,6 +424,11 @@ async def update_order_status(
         )
     else:
         await notify_user_status_change(order.user.telegram_id, order.id, data.status)
+
+    # Уведомить всех администраторов о смене статуса
+    await notify_admins_status_change(
+        order.id, order.user, order.status.value, data.status.value
+    )
 
     result2 = await db.execute(_order_query().where(Order.id == order_id))
     return result2.scalar_one()

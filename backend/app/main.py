@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import init_db
-from app.api import auth, categories, products, orders, bot_api, clients, analytics
+from app.api import auth, categories, products, orders, bot_api, clients, analytics, settings as settings_router
 from app.core.config import settings
 from app.core.security import hash_password
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.models.admin import Admin, AdminRole
+from app.models.notify_admin import NotifyAdmin
 from sqlalchemy import select, text
 
 app = FastAPI(title="Shop Admin API", version="1.0.0")
@@ -26,6 +27,7 @@ app.include_router(orders.router, prefix="/api")
 app.include_router(bot_api.router, prefix="/api")
 app.include_router(clients.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(settings_router.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup():
@@ -87,6 +89,16 @@ async def startup():
             db.add(admin)
             await db.commit()
             print("✅ Default admin created: admin / admin123")
+
+
+        # Seed notify_admins from .env if table is empty
+        na_result = await db.execute(select(NotifyAdmin))
+        if not na_result.scalars().first():
+            for tg_id in settings.get_admin_ids():
+                db.add(NotifyAdmin(telegram_id=tg_id, label="из .env"))
+            await db.commit()
+            if settings.get_admin_ids():
+                print(f"✅ Seeded notify_admins from .env: {settings.get_admin_ids()}")
 
 @app.get("/health")
 async def health():
