@@ -87,7 +87,7 @@ class UserOut(BaseModel):
 # --- Order ---
 class OrderItemOut(BaseModel):
     id: int
-    product_id: int
+    product_id: Optional[int] = None
     product: Optional[ProductShort] = None
     quantity: int
     price_at_order: float
