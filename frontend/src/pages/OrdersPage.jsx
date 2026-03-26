@@ -55,10 +55,13 @@ export default function OrdersPage() {
   const [broadcasting, setBroadcasting] = useState(false)
 
   const load = async () => {
-    const params = tab === 'active' ? '' : `?status=${tab}`
-    const r = await api.get(`/api/orders/${params}`)
+    const r = await api.get('/api/orders/')
     let data = r.data
-    if (tab === 'active') data = data.filter(o => ACTIVE_STATUSES.includes(o.status))
+    if (tab === 'active') {
+      data = data.filter(o => ACTIVE_STATUSES.includes(o.status))
+    } else {
+      data = data.filter(o => o.status === tab)
+    }
     setOrders(data)
   }
 
